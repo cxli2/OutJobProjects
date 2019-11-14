@@ -7,7 +7,9 @@
 
 import sys
 from PyQt5.QtWidgets import (QWidget, QLabel, QApplication, QLineEdit, QPushButton, QHBoxLayout,
-                             QGridLayout, QFrame, QDialog, QComboBox, QVBoxLayout, QMessageBox)
+                             QGridLayout, QFrame, QDialog, QComboBox, QVBoxLayout, QMessageBox,
+                             QDockWidget, QMainWindow, QTableWidget, QAbstractItemView, QHeaderView,
+                             QTableWidgetItem)
 from PyQt5.QtGui import (QFont, QRegExpValidator)
 from PyQt5.QtCore import (Qt, QRegExp)
 
@@ -23,6 +25,7 @@ class NumberItem(QWidget):
     def initUI(self, num):
         self.number_value = num
         self.money = 0
+        self.dockWidget = None
 
         self.history = []
 
@@ -38,6 +41,11 @@ class NumberItem(QWidget):
         layout = QHBoxLayout()
         layout.addWidget(self.num_label)
         self.setLayout(layout)
+    #响应鼠标左右键单击事件，显示号码资金历史记录
+    def mousePressEvent(self, event):
+        if event.button==Qt.LeftButton or event.button==Qt.RightButton:
+            self.dockWidget.displayNumberHistory()
+
 
     def get_number(self):
         return self.number_value
@@ -58,6 +66,37 @@ class NumberItem(QWidget):
         self.money -= minus
         self.num_label.setText("号数：{}      金额：{}￥".format(self.number_value, self.money))
         self.history.append(-minus)
+
+    def get_history(self):
+        return self.history
+
+#资金历史记录显示dock widget，所有号码历史资金流水
+class HistoryDockWidget(QDockWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setColumnCount(2)
+        headers = ['号码', '资金流水记录']
+        self.tableWidget.setHorizontalHeaderLabels(headers)
+        self.tableWidget.horizontalHeader().setFixedHeight(50)
+        self.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.tableWidget.horizontalHeader().setSectionsClickable(False)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.setWidget(self.tableWidget)
+
+    def displayNumberHistory(self):
+        for key in NUM_MAP:
+            row = self.tableWidget.rowCount()
+            self.tableWidget.setRowCount(row+1)
+            self.tableWidget.setItem(row, 0, QTableWidgetItem(NUM_MAP[key].get_number()))
+            self.tableWidget.setItem(row, 0, QTableWidgetItem(self.format_history(NUM_MAP[key].get_history())))
+
+    def format_history(self, h):
+        return "    ".join(h)
 
 #交互对话框定义
 class EditDialog(QDialog):
@@ -214,7 +253,7 @@ class Manager(QWidget):
         self.total_money = 0
         self.total_label.setText("总金额：{}￥".format(self.total_money))
 
-class MainWindows(QWidget):
+class MainWindows(QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -222,6 +261,7 @@ class MainWindows(QWidget):
 
 
     def initUI(self):
+        centralWidget = QWidget()
         layout = QGridLayout()
         # 显示每个数字
         row =0
@@ -237,7 +277,9 @@ class MainWindows(QWidget):
         #显示管理组件
         mgr = Manager()
         layout.addWidget(mgr, ROWS_NUM, 0, 1, col)
-        self.setLayout(layout)
+        centralWidget.setLayout(layout)
+        self.setCentralWidget(centralWidget)
+        #添加dock widget组件，显示号码金额历史信息
 
         self.setGeometry(300, 300, 250, 150)
         self.setWindowTitle('金额统计')
